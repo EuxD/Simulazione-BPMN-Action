@@ -1,0 +1,25 @@
+name: Simulazione Esercizio 2
+on: workflow_dispatch # Questo comando crea il pulsante per farlo partire a mano
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Sto facendo la build..."
+      - run: sleep 10 # Finge di lavorare per 10 secondi
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Sto facendo i test..."
+      - run: sleep 15 # Finge di lavorare per 15 secondi
+
+  deploy:
+    needs: [build, test] # Aspetta i due job paralleli
+    environment: 
+      name: produzione # Chiama in causa il "cancello" di approvazione
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Inizio il timer di 2 minuti..."
+      - run: sleep 120 # Aspetta 2 minuti esatti come da diagramma
+      - run: echo "Deploy completato con successo!"
