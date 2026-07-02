@@ -1,0 +1,39 @@
+name: Simulazione Esercizio 1
+on: workflow_dispatch
+
+jobs:
+  validazione_ordine:
+    runs-on: ubuntu-latest
+    
+    outputs: 
+      ordine_valido: ${{ steps.controllo.outputs.ordine_valido }}
+      
+    steps:
+      - run: echo "Validando l'ordine..."
+      
+      # 2. Assegniamo l'output fisicamente usando un 'id'
+      - id: controllo
+        run: echo "ordine_valido=true" >> $GITHUB_OUTPUT 
+        
+      - run: sleep 10
+
+  prepara_spedizione:
+    runs-on: ubuntu-latest
+    needs: validazione_ordine
+
+    if: needs.validazione_ordine.outputs.ordine_valido == 'true'
+    
+    steps:
+      - run: echo "Ordine valido! Preparo la spedizione..."
+      - run: sleep 5
+
+  notifica_errore:
+    runs-on: ubuntu-latest
+    needs: validazione_ordine
+    if: needs.validazione_ordine.outputs.ordine_valido == 'false'
+
+    steps:
+      - run: echo "Ordine non valido! Qualcosa è andato storto..."
+      - run: sleep 5
+
+    
