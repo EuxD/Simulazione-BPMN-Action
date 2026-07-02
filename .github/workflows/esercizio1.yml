@@ -1,5 +1,12 @@
 name: Simulazione Esercizio 1
-on: workflow_dispatch
+on: 
+  workflow_dispatch:
+  # Mettendo inputs quando lo lancio posso scegliere il valore da dare a ordine_valido
+    inputs:
+      ordine_valido:
+        description: "true se l'ordine e valido"
+        required: true
+        default: "true"
 
 jobs:
   validazione_ordine:
@@ -11,9 +18,11 @@ jobs:
     steps:
       - run: echo "Validando l'ordine..."
       
-      # 2. Assegniamo l'output fisicamente usando un 'id'
+      # Assegniamo l'output fisicamente usando un 'id'
       - id: controllo
-        run: echo "ordine_valido=true" >> $GITHUB_OUTPUT 
+      # Avendo aggiunto inputs, ora recupero il valore in maniera dinamica, vado a vedere l'evento che ha fatto scattare il processo
+      # ovvero vado a vedere quello che è il valore che ho dato a ordine_valido
+        run: echo "ordine_valido=${{ github.event.inputs.ordine_valido }}" >> $GITHUB_OUTPUT 
         
       - run: sleep 10
 
