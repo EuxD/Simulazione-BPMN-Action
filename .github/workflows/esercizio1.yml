@@ -23,6 +23,9 @@ jobs:
       # Avendo aggiunto inputs, ora recupero il valore in maniera dinamica, vado a vedere l'evento che ha fatto scattare il processo
       # ovvero vado a vedere quello che è il valore che ho dato a ordine_valido
         run: echo "ordine_valido=${{ github.event.inputs.ordine_valido }}" >> $GITHUB_OUTPUT 
+     
+      - name: Leggi il file
+        run: cat $GITHUB_OUTPUT
         
       - run: sleep 10
 
