@@ -51,7 +51,7 @@ jobs:
     name: "Comitato - Valutazione preliminare"
     needs: sgr_autenticazione_pseudonimo
     runs-on: ubuntu-latest
-    environment: comitato-triage        # <-- gate umano: required reviewers
+    environment: comitato-valutazione        # <-- gate umano: required reviewers
     steps:
       - run: |
           echo "Caso ${{ needs.sgr_autenticazione_pseudonimo.outputs.pseudonimo }}"
