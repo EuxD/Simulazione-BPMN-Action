@@ -1,0 +1,140 @@
+name: Processo Whistleblowing
+on:
+  workflow_dispatch:
+    inputs:
+      segnalazione:
+        description: "Testo della segnalazione"
+        required: true
+        type: string
+      identita_segnalante:
+        description: "Identita del segnalante (verra' pseudonimizzata, non esposta)"
+        required: true
+        type: string
+      fondata:
+        description: "Valutazione preliminare"
+        required: true
+        type: choice
+        options:
+          - fondata
+          - lamentela_generica
+      esito_indagine:
+        description: "Esito dell'indagine (usato solo se 'fondata')"
+        required: false
+        default: confermato
+        type: choice
+        options:
+          - confermato
+          - non_confermato
+          - inconcludente
+
+permissions:
+  contents: read
+
+jobs:
+  # ======================= POOL SISTEMA GESTIONE RICHIESTA =======================
+  sgr_autenticazione_pseudonimo:
+    name: "IAM - Autenticazione e creazione pseudonimo"
+    runs-on: ubuntu-latest
+    outputs:
+      pseudonimo: ${{ steps.pseudo.outputs.pseudonimo }}
+    steps:
+      - name: Verifica credenziali (challenge/response)
+        run: echo "Credenziali verificate."
+      - name: Creazione pseudonimo
+        id: pseudo
+        run: |
+          HASH=$(printf '%s' "${{ inputs.identita_segnalante }}" | sha256sum | cut -c1-12)
+          echo "pseudonimo=segnalante-$HASH" >> "$GITHUB_OUTPUT"
+
+  # =============== POOL COMITATO - Valutazione preliminare (UMANO) ==============
+  comitato:
+    name: "Comitato - Valutazione preliminare"
+    needs: sgr_autenticazione_pseudonimo
+    runs-on: ubuntu-latest
+    environment: comitato-triage        # <-- gate umano: required reviewers
+    steps:
+      - run: |
+          echo "Caso ${{ needs.sgr_autenticazione_pseudonimo.outputs.pseudonimo }}"
+          echo "Decisione preliminare: ${{ inputs.fondata }}"
+
+  # ================= Verifiche in PARALLELO (AND-split) - UMANO =================
+  comitato_verifica_documentale:
+    name: "Comitato - Verifica documentale"
+    needs: comitato
+    if: ${{ inputs.fondata == 'fondata' }}
+    runs-on: ubuntu-latest
+    environment: comitato-verifiche
+    steps:
+      - run: echo "Verifica documentale completata (integrita prove controllata)."
+
+  comitato_verifica_contabile:
+    name: "Comitato - Verifica contabile"
+    needs: comitato
+    if: ${{ inputs.fondata == 'fondata' }}
+    runs-on: ubuntu-latest
+    environment: comitato-verifiche
+    steps:
+      - run: echo "Verifica contabile completata."
+
+  # ================ Esito: AND-join + XOR a 3 vie (UMANO) ================
+  comitato_decisione:
+    name: "Comitato - Decisione esito"
+    needs: [comitato_verifica_documentale, comitato_verifica_contabile]   # AND-join
+    if: ${{ inputs.fondata == 'fondata' }}
+    runs-on: ubuntu-latest
+    environment: comitato-decisione
+    steps:
+      - run: |
+          echo "Esito indagine = ${{ inputs.esito_indagine }}"
+
+  # ---- ramo CONFERMATO ----
+  comitato_provvedimenti:
+    name: "Comitato - Provvedimenti disciplinari"
+    needs: comitato_decisione
+    if: ${{ inputs.fondata == 'fondata' && inputs.esito_indagine == 'confermato' }}
+    runs-on: ubuntu-latest
+    environment: comitato-provvedimenti
+    steps:
+      - run: echo "Provvedimenti disciplinari adottati."
+
+  notifica_sanzione:
+    name: "Notifica sanzione al Soggetto segnalato"
+    needs: comitato_provvedimenti
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::notice::Notifica di sanzione inviata al soggetto segnalato."
+
+  # ---- ramo NON CONFERMATO ----
+  comitato_archiviazione:
+    name: "Comitato - Archiviazione segnalazione"
+    needs: comitato_decisione
+    if: ${{ inputs.fondata == 'fondata' && inputs.esito_indagine == 'non_confermato' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Segnalazione archiviata."
+
+  # ---- ramo INCONCLUDENTE (loop non nativo) ----
+  comitato_reindagine:
+    name: "Comitato - Dati non sufficienti"
+    needs: comitato_decisione
+    if: ${{ inputs.fondata == 'fondata' && inputs.esito_indagine == 'inconcludente' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::warning::Esito inconcludente: nel BPMN si torna alle verifiche (loop)."
+          echo "GitHub Actions e' un DAG aciclico: rilanciare il workflow per la reindagine."
+
+  # ==================== IAM - Invio esito al segnalante (automatico) ====================
+  iam_invio_esito:
+    name: "IAM - Invio esito al segnalante (pseudonimo)"
+    # confluenza di tutti i rami terminali (generica / confermato / non confermato / inconcludente)
+    needs:
+      - sgr_autenticazione_pseudonimo
+      - comitato
+      - notifica_sanzione
+      - comitato_archiviazione
+      - comitato_reindagine
+    if: ${{ always() && needs.comitato.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Esito recapitato in forma pseudonima a ${{ needs.sgr_autenticazione_pseudonimo.outputs.pseudonimo }}"
