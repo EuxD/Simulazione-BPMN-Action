@@ -102,7 +102,7 @@ jobs:
     needs: comitato_provvedimenti
     runs-on: ubuntu-latest
     steps:
-      - run: echo "::notice::Notifica di sanzione inviata al soggetto segnalato."
+      - run: echo "Notifica di sanzione inviata al soggetto segnalato."
 
   # ---- ramo NON CONFERMATO ----
   comitato_archiviazione:
@@ -121,8 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo "::warning::Esito inconcludente: nel BPMN si torna alle verifiche (loop)."
-          echo "GitHub Actions e' un DAG aciclico: rilanciare il workflow per la reindagine."
+          echo "Esito inconcludente."
 
   # ==================== SGR - Invio esito al segnalante (automatico) ====================
   sgr_invio_esito:
