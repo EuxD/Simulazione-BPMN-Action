@@ -1,4 +1,4 @@
-name: Processo Whistleblowing
+name: Processo Segnalazioni
 on:
   workflow_dispatch:
     inputs:
@@ -26,9 +26,6 @@ on:
           - confermato
           - non_confermato
           - inconcludente
-
-permissions:
-  contents: read
 
 jobs:
   # ======================= POOL SISTEMA GESTIONE RICHIESTA =======================
