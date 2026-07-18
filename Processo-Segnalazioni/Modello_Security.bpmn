@@ -1,0 +1,509 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:sb="http://example.com/schema/bpmn/securebpmn" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_whistleblowing" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:dataStore id="DataStore_global" name="Registro identita" isUnlimited="false" />
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Pool_Seg" name="Segnalante" processRef="P_seg">
+      <bpmn:extensionElements>
+        <sb:securityRequirement requirementType="Privacy" audit="Date,Time" privacyType="anonymity" notes="L&#39;identita del segnalante non deve essere rivelata (anonimato)" />
+      </bpmn:extensionElements>
+    </bpmn:participant>
+    <bpmn:participant id="Pool_Iam" name="Sistema Gestione Richiesta" processRef="P_iam">
+      <bpmn:extensionElements>
+        <sb:securityRequirement requirementType="AttackHarmDetection" audit="ElementName,Date,Time" notes="Ogni tentativo di accesso o attacco al registro identita deve essere rilevato, registrato e notificato" />
+      </bpmn:extensionElements>
+    </bpmn:participant>
+    <bpmn:participant id="Pool_Com" name="Comitato Etico" processRef="P_com" />
+    <bpmn:participant id="Pool_Sog" name="Soggetto segnalato">
+      <bpmn:extensionElements>
+        <sb:securityRequirement requirementType="Privacy" privacyType="confidentiality" notes="L&#39;identita del soggetto segnalato sono riservati e accessibili solo ai membri del Comitato Etico. La confidentiality ha come idea di tutelare il soggetto in caso di segnalazione infondata.">
+          <sb:securityRole roleName="ComitatoEtico" description="Responsabile della riservatezza dei dati del soggetto segnalato" />
+        </sb:securityRequirement>
+      </bpmn:extensionElements>
+    </bpmn:participant>
+    <bpmn:messageFlow id="mf_cred" name="Credenziali" sourceRef="s_cred" targetRef="sgr_start">
+      <bpmn:extensionElements>
+        <sb:securityRequirement requirementType="Privacy" privacyType="confidentiality" notes="Le credenziali viaggiano su un canale protetto questo per evitare ntercettazione. La password non e mai trasmessa in chiaro grazie al meccanismo challenge/response; la confidentiality protegge lo username, che identificherebbe il segnalante." />
+      </bpmn:extensionElements>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="mf_chal" name="Challenge" sourceRef="sgr_chal" targetRef="s_wait_ch" />
+    <bpmn:messageFlow id="mf_resp" name="Risposta alla challenge" sourceRef="s_risp" targetRef="sgr_wait_risp" />
+    <bpmn:messageFlow id="mf_authok" name="Autenticazione OK" sourceRef="sgr_verifica" targetRef="s_wait_auth" />
+    <bpmn:messageFlow id="mf_report" name="Invio segnalazione&#10;(autenticata)" sourceRef="s_invio" targetRef="sgr_wait_segnalazione">
+      <bpmn:extensionElements>
+        <sb:securityRequirement requirementType="NonRepudiation" audit="SourceName,DestinationName,DateTimeSend,DateTimeReceive" notes="L&#39;invio della segnalazione non puo essere ripudiato dalle parti. L&#39;invio della segnalazione e inoltre protetto privacy = confidentiality (canale cifrato) per evitare che venga scoperto il nome reale del segnalante" />
+      </bpmn:extensionElements>
+    </bpmn:messageFlow>
+    <bpmn:messageFlow id="mf_pseudo" name="Segnalazione&#10;pseudonimizzata" sourceRef="sgr_pseudo" targetRef="c_start" />
+    <bpmn:messageFlow id="mf_esito" name="Esito&#10;(pseudonimo)" sourceRef="c_esito" targetRef="sgr_cattura_esito_comitato" />
+    <bpmn:messageFlow id="mf_inoltro" name="Esito al&#10;segnalante" sourceRef="sgr_inoltro" targetRef="s_esito" />
+    <bpmn:messageFlow id="mf_sanz" name="Notifica sanzione" sourceRef="c_invia_sanz" targetRef="Pool_Sog" />
+  </bpmn:collaboration>
+  <bpmn:process id="P_seg" isExecutable="false">
+    <bpmn:startEvent id="s_start" />
+    <bpmn:userTask id="s_cred" name="Inserisci&#10;credenziali" />
+    <bpmn:intermediateCatchEvent id="s_wait_ch" name="Attende&#10;challenge">
+      <bpmn:messageEventDefinition id="e_wchal_med" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:userTask id="s_risp" name="Rispondi alla&#10;challenge" />
+    <bpmn:intermediateCatchEvent id="s_wait_auth" name="Attende conferma&#10;autenticazione">
+      <bpmn:messageEventDefinition id="e_wauth_med" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:userTask id="s_invio" name="Compila e invia&#10;segnalazione" />
+    <bpmn:intermediateCatchEvent id="s_esito" name="Ricezione esito">
+      <bpmn:messageEventDefinition id="s_catch_med" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="s_end" />
+    <bpmn:sequenceFlow id="cs1" sourceRef="s_start" targetRef="s_cred" />
+    <bpmn:sequenceFlow id="cs2" sourceRef="s_cred" targetRef="s_wait_ch" />
+    <bpmn:sequenceFlow id="cs3" sourceRef="s_wait_ch" targetRef="s_risp" />
+    <bpmn:sequenceFlow id="cs4" sourceRef="s_risp" targetRef="s_wait_auth" />
+    <bpmn:sequenceFlow id="cs5" sourceRef="s_wait_auth" targetRef="s_invio" />
+    <bpmn:sequenceFlow id="cs6" sourceRef="s_invio" targetRef="s_esito" />
+    <bpmn:sequenceFlow id="cs7" sourceRef="s_esito" targetRef="s_end" />
+  </bpmn:process>
+  <bpmn:process id="P_iam" isExecutable="false">
+    <bpmn:startEvent id="sgr_start" name="Ricezione&#10;credenziali">
+      <bpmn:messageEventDefinition id="i_start_med" />
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="sgr_chal" name="Genera e invia&#10;challenge" />
+    <bpmn:intermediateCatchEvent id="sgr_wait_risp" name="Attende&#10;risposta">
+      <bpmn:messageEventDefinition id="e_wresp_med" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="sgr_verifica" name="Verifica&#10;risposta" />
+    <bpmn:intermediateCatchEvent id="sgr_wait_segnalazione" name="Attende&#10;segnalazione">
+      <bpmn:messageEventDefinition id="e_wrep_med" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="sgr_pseudo" name="Creazione Pseudonimo">
+      <bpmn:extensionElements>
+        <sb:securityRequirement requirementType="AccessControl" audit="RoleName,Date,Time" notes="Per sbloccare il registro c&#39;e bisogno di due soggetti differenti (SoD) che sono il custode del registro + autorita giudiziaria">
+          <sb:securityRole roleName="RegistryCustodian" description="Custode tecnico del registro pseudonimo-identita" />
+          <sb:securityRole roleName="JudicialAuthority" description="Autorita che fornisce la base giuridica allo sblocco" />
+          <sb:securityPermission objectRef="ds_reg" operations="Read,Update" description="soggetto = SGR (Sistema Gestione Richieste), uso interno per pseudonimizzazione e instradamento esito, nessuna divulgazione." />
+          <sb:securityPermission objectRef="ds_reg" operations="Read" description="soggetto = RegistryCustodian + JudicialAuthority insieme (SoD), solo con base giuridica" />
+        </sb:securityRequirement>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="sgr_cattura_esito_comitato" name="Esito dal&#10;Comitato">
+      <bpmn:messageEventDefinition id="i_catch_med" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sendTask id="sgr_inoltro" name="Inoltro esito&#10;al segnalante" />
+    <bpmn:endEvent id="sgr_end" />
+    <bpmn:sequenceFlow id="ci1" sourceRef="sgr_start" targetRef="sgr_chal" />
+    <bpmn:sequenceFlow id="ci2" sourceRef="sgr_chal" targetRef="sgr_wait_risp" />
+    <bpmn:sequenceFlow id="ci3" sourceRef="sgr_wait_risp" targetRef="sgr_verifica" />
+    <bpmn:sequenceFlow id="ci4" sourceRef="sgr_verifica" targetRef="sgr_wait_segnalazione" />
+    <bpmn:sequenceFlow id="ci5" sourceRef="sgr_wait_segnalazione" targetRef="sgr_pseudo" />
+    <bpmn:sequenceFlow id="ci6" sourceRef="sgr_pseudo" targetRef="sgr_cattura_esito_comitato" />
+    <bpmn:sequenceFlow id="ci7" sourceRef="sgr_cattura_esito_comitato" targetRef="sgr_inoltro" />
+    <bpmn:sequenceFlow id="ci8" sourceRef="sgr_inoltro" targetRef="sgr_end" />
+    <bpmn:dataStoreReference id="ds_reg" name="Registro identita&#10;(pseudonimo - identita)" dataStoreRef="DataStore_global" />
+    <bpmn:association id="a_ds" sourceRef="sgr_pseudo" targetRef="ds_reg" />
+  </bpmn:process>
+  <bpmn:process id="P_com" isExecutable="false">
+    <bpmn:startEvent id="c_start" name="Segnalazione&#10;ricevuta">
+      <bpmn:messageEventDefinition id="c_start_med" />
+    </bpmn:startEvent>
+    <bpmn:userTask id="c_valutazione" name="Valutazione preliminare" />
+    <bpmn:exclusiveGateway id="g1" name="Fondata?" />
+    <bpmn:exclusiveGateway id="g2" />
+    <bpmn:parallelGateway id="g3" />
+    <bpmn:userTask id="c_doc" name="Verifica&#10;documentale" />
+    <bpmn:userTask id="c_cont" name="Verifica&#10;contabile" />
+    <bpmn:parallelGateway id="g4" />
+    <bpmn:exclusiveGateway id="g5" name="Esito?" />
+    <bpmn:userTask id="c_provv" name="Provvedimenti&#10;disciplinari" />
+    <bpmn:sendTask id="c_invia_sanz" name="Notifica&#10;sanzione" />
+    <bpmn:serviceTask id="c_nuovi_dati" name="Acquisizione dati&#10;aggiuntivi" />
+    <bpmn:exclusiveGateway id="g6" />
+    <bpmn:serviceTask id="c_esito" name="Invio esito&#10;(pseudonimo)" />
+    <bpmn:endEvent id="c_end" />
+    <bpmn:sequenceFlow id="c1" sourceRef="c_start" targetRef="c_valutazione" />
+    <bpmn:sequenceFlow id="c2" sourceRef="c_valutazione" targetRef="g1" />
+    <bpmn:sequenceFlow id="c3" name="Fondata" sourceRef="g1" targetRef="g2" />
+    <bpmn:sequenceFlow id="c4" name="Lamentela generica" sourceRef="g1" targetRef="g6" />
+    <bpmn:sequenceFlow id="c5" sourceRef="g2" targetRef="g3" />
+    <bpmn:sequenceFlow id="c6" sourceRef="g3" targetRef="c_doc" />
+    <bpmn:sequenceFlow id="c7" sourceRef="g3" targetRef="c_cont" />
+    <bpmn:sequenceFlow id="c8" sourceRef="c_doc" targetRef="g4" />
+    <bpmn:sequenceFlow id="c9" sourceRef="c_cont" targetRef="g4" />
+    <bpmn:sequenceFlow id="c10" sourceRef="g4" targetRef="g5" />
+    <bpmn:sequenceFlow id="c11" name="Confermato" sourceRef="g5" targetRef="c_provv" />
+    <bpmn:sequenceFlow id="c_sanz" sourceRef="c_provv" targetRef="c_invia_sanz" />
+    <bpmn:sequenceFlow id="c12" name="Non confermato" sourceRef="g5" targetRef="c_arch" />
+    <bpmn:sequenceFlow id="c13" name="Richiesta maggiore analisi" sourceRef="g5" targetRef="c_nuovi_dati" />
+    <bpmn:sequenceFlow id="c14" sourceRef="c_nuovi_dati" targetRef="g2" />
+    <bpmn:sequenceFlow id="c15" sourceRef="c_invia_sanz" targetRef="g6" />
+    <bpmn:sequenceFlow id="c16" sourceRef="c_arch" targetRef="g6" />
+    <bpmn:sequenceFlow id="c17" sourceRef="g6" targetRef="c_esito" />
+    <bpmn:sequenceFlow id="c18" sourceRef="c_esito" targetRef="c_end" />
+    <bpmn:userTask id="c_arch" name="Archiviazione&#10;segnalazione" />
+    <bpmn:dataObjectReference id="prove" name="Prove allegate dal segnalante" dataObjectRef="do_prove_do">
+      <bpmn:extensionElements>
+        <sb:securityRequirement requirementType="Integrity" audit="ElementName,Date,Time" protectDegree="high" notes="Le prove allegate devono essere protette da alterazioni non autorizzate" />
+      </bpmn:extensionElements>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="do_prove_do" />
+    <bpmn:association id="a_do" sourceRef="prove" targetRef="c_doc" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Pool_Seg_di" bpmnElement="Pool_Seg" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1620" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_start_di" bpmnElement="s_start">
+        <dc:Bounds x="230" y="147" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_cred_di" bpmnElement="s_cred" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="290" y="125" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_wait_ch_di" bpmnElement="s_wait_ch">
+        <dc:Bounds x="430" y="147" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="424" y="109.5" width="48" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_risp_di" bpmnElement="s_risp" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="500" y="125" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_wait_auth_di" bpmnElement="s_wait_auth">
+        <dc:Bounds x="640" y="147" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_invio_di" bpmnElement="s_invio" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="710" y="125" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_esito_di" bpmnElement="s_esito">
+        <dc:Bounds x="890" y="147" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_end_di" bpmnElement="s_end">
+        <dc:Bounds x="970" y="147" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="cs1_di" bpmnElement="cs1">
+        <di:waypoint x="266" y="165" />
+        <di:waypoint x="290" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="cs2_di" bpmnElement="cs2">
+        <di:waypoint x="390" y="165" />
+        <di:waypoint x="430" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="cs3_di" bpmnElement="cs3">
+        <di:waypoint x="466" y="165" />
+        <di:waypoint x="500" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="cs4_di" bpmnElement="cs4">
+        <di:waypoint x="610" y="165" />
+        <di:waypoint x="640" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="cs5_di" bpmnElement="cs5">
+        <di:waypoint x="676" y="165" />
+        <di:waypoint x="710" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="cs6_di" bpmnElement="cs6">
+        <di:waypoint x="820" y="165" />
+        <di:waypoint x="890" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="cs7_di" bpmnElement="cs7">
+        <di:waypoint x="926" y="165" />
+        <di:waypoint x="970" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Pool_Iam_di" bpmnElement="Pool_Iam" isHorizontal="true">
+        <dc:Bounds x="160" y="270" width="1620" height="210" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sgr_start_di" bpmnElement="sgr_start">
+        <dc:Bounds x="230" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sgr_chal_di" bpmnElement="sgr_chal" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="290" y="320" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sgr_wait_risp_di" bpmnElement="sgr_wait_risp">
+        <dc:Bounds x="440" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sgr_verifica_di" bpmnElement="sgr_verifica" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="510" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sgr_wait_segnalazione_di" bpmnElement="sgr_wait_segnalazione">
+        <dc:Bounds x="650" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sgr_pseudo_di" bpmnElement="sgr_pseudo" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="720" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sgr_cattura_esito_comitato_di" bpmnElement="sgr_cattura_esito_comitato">
+        <dc:Bounds x="1050" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sgr_inoltro_di" bpmnElement="sgr_inoltro" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="1130" y="320" width="110" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sgr_end_di" bpmnElement="sgr_end">
+        <dc:Bounds x="1310" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ds_reg_di" bpmnElement="ds_reg">
+        <dc:Bounds x="845" y="385" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="830" y="435" width="80" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="a_ds_di" bpmnElement="a_ds">
+        <di:waypoint x="820" y="379" />
+        <di:waypoint x="845" y="405" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ci1_di" bpmnElement="ci1">
+        <di:waypoint x="266" y="360" />
+        <di:waypoint x="290" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ci2_di" bpmnElement="ci2">
+        <di:waypoint x="400" y="360" />
+        <di:waypoint x="440" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ci3_di" bpmnElement="ci3">
+        <di:waypoint x="476" y="360" />
+        <di:waypoint x="510" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ci4_di" bpmnElement="ci4">
+        <di:waypoint x="610" y="360" />
+        <di:waypoint x="650" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ci5_di" bpmnElement="ci5">
+        <di:waypoint x="686" y="360" />
+        <di:waypoint x="720" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ci6_di" bpmnElement="ci6">
+        <di:waypoint x="820" y="360" />
+        <di:waypoint x="1050" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ci7_di" bpmnElement="ci7">
+        <di:waypoint x="1086" y="360" />
+        <di:waypoint x="1130" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ci8_di" bpmnElement="ci8">
+        <di:waypoint x="1240" y="360" />
+        <di:waypoint x="1310" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Pool_Com_di" bpmnElement="Pool_Com" isHorizontal="true">
+        <dc:Bounds x="160" y="500" width="1620" height="470" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="c_start_di" bpmnElement="c_start">
+        <dc:Bounds x="230" y="672" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="c_valutazione_di" bpmnElement="c_valutazione" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="300" y="650" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="g1_di" bpmnElement="g1" isMarkerVisible="true">
+        <dc:Bounds x="450" y="665" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="g2_di" bpmnElement="g2" isMarkerVisible="true">
+        <dc:Bounds x="550" y="665" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="g3_di" bpmnElement="g3">
+        <dc:Bounds x="650" y="665" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="c_doc_di" bpmnElement="c_doc" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="760" y="550" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="c_cont_di" bpmnElement="c_cont" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="760" y="750" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="g4_di" bpmnElement="g4">
+        <dc:Bounds x="920" y="665" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="g5_di" bpmnElement="g5" isMarkerVisible="true">
+        <dc:Bounds x="1020" y="665" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1052" y="715" width="31" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="c_provv_di" bpmnElement="c_provv" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="1130" y="550" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="c_invia_sanz_di" bpmnElement="c_invia_sanz" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="1270" y="550" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="c_nuovi_dati_di" bpmnElement="c_nuovi_dati" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="710" y="840" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="g6_di" bpmnElement="g6" isMarkerVisible="true">
+        <dc:Bounds x="1450" y="665" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="c_esito_di" bpmnElement="c_esito" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="1550" y="650" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="c_end_di" bpmnElement="c_end">
+        <dc:Bounds x="1720" y="672" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="c_arch_di" bpmnElement="c_arch" bioc:stroke="#bdc3c7" color:border-color="#bdc3c7">
+        <dc:Bounds x="1150" y="750" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="prove_di" bpmnElement="prove">
+        <dc:Bounds x="572" y="520" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="554" y="570" width="72" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="a_do_di" bpmnElement="a_do">
+        <di:waypoint x="608" y="570" />
+        <di:waypoint x="795" y="570" />
+        <di:waypoint x="760" y="570" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c1_di" bpmnElement="c1">
+        <di:waypoint x="266" y="690" />
+        <di:waypoint x="300" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c2_di" bpmnElement="c2">
+        <di:waypoint x="400" y="690" />
+        <di:waypoint x="450" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c3_di" bpmnElement="c3">
+        <di:waypoint x="500" y="690" />
+        <di:waypoint x="550" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c4_di" bpmnElement="c4">
+        <di:waypoint x="475" y="715" />
+        <di:waypoint x="475" y="935" />
+        <di:waypoint x="1475" y="935" />
+        <di:waypoint x="1475" y="715" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c5_di" bpmnElement="c5">
+        <di:waypoint x="600" y="690" />
+        <di:waypoint x="650" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c6_di" bpmnElement="c6">
+        <di:waypoint x="675" y="665" />
+        <di:waypoint x="675" y="590" />
+        <di:waypoint x="760" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c7_di" bpmnElement="c7">
+        <di:waypoint x="675" y="715" />
+        <di:waypoint x="675" y="790" />
+        <di:waypoint x="760" y="790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c8_di" bpmnElement="c8">
+        <di:waypoint x="860" y="590" />
+        <di:waypoint x="945" y="590" />
+        <di:waypoint x="945" y="665" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c9_di" bpmnElement="c9">
+        <di:waypoint x="860" y="790" />
+        <di:waypoint x="945" y="790" />
+        <di:waypoint x="945" y="715" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c10_di" bpmnElement="c10">
+        <di:waypoint x="970" y="690" />
+        <di:waypoint x="1020" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c11_di" bpmnElement="c11">
+        <di:waypoint x="1045" y="665" />
+        <di:waypoint x="1045" y="590" />
+        <di:waypoint x="1130" y="590" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1051" y="618" width="58" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c_sanz_di" bpmnElement="c_sanz">
+        <di:waypoint x="1230" y="590" />
+        <di:waypoint x="1270" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c12_di" bpmnElement="c12">
+        <di:waypoint x="1070" y="690" />
+        <di:waypoint x="1100" y="690" />
+        <di:waypoint x="1100" y="790" />
+        <di:waypoint x="1150" y="790" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1050" y="800" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c13_di" bpmnElement="c13">
+        <di:waypoint x="1045" y="715" />
+        <di:waypoint x="1045" y="790" />
+        <di:waypoint x="1000" y="790" />
+        <di:waypoint x="1000" y="880" />
+        <di:waypoint x="810" y="880" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="909" y="853" width="81" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c14_di" bpmnElement="c14">
+        <di:waypoint x="710" y="880" />
+        <di:waypoint x="575" y="880" />
+        <di:waypoint x="575" y="715" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c15_di" bpmnElement="c15">
+        <di:waypoint x="1370" y="590" />
+        <di:waypoint x="1475" y="590" />
+        <di:waypoint x="1475" y="665" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c16_di" bpmnElement="c16">
+        <di:waypoint x="1250" y="790" />
+        <di:waypoint x="1280" y="790" />
+        <di:waypoint x="1280" y="690" />
+        <di:waypoint x="1450" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c17_di" bpmnElement="c17">
+        <di:waypoint x="1500" y="690" />
+        <di:waypoint x="1550" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="c18_di" bpmnElement="c18">
+        <di:waypoint x="1650" y="690" />
+        <di:waypoint x="1720" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Pool_Sog_di" bpmnElement="Pool_Sog" isHorizontal="true">
+        <dc:Bounds x="160" y="990" width="1620" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="mf_cred_di" bpmnElement="mf_cred">
+        <di:waypoint x="340" y="205" />
+        <di:waypoint x="340" y="258" />
+        <di:waypoint x="248" y="258" />
+        <di:waypoint x="248" y="342" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="mf_chal_di" bpmnElement="mf_chal">
+        <di:waypoint x="360" y="320" />
+        <di:waypoint x="360" y="262" />
+        <di:waypoint x="448" y="262" />
+        <di:waypoint x="448" y="183" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="379" y="237" width="50" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="mf_resp_di" bpmnElement="mf_resp">
+        <di:waypoint x="540" y="210" />
+        <di:waypoint x="540" y="270" />
+        <di:waypoint x="470" y="270" />
+        <di:waypoint x="470" y="347" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="473" y="245" width="64" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="mf_authok_di" bpmnElement="mf_authok">
+        <di:waypoint x="560" y="320" />
+        <di:waypoint x="560" y="262" />
+        <di:waypoint x="658" y="262" />
+        <di:waypoint x="658" y="183" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="mf_report_di" bpmnElement="mf_report">
+        <di:waypoint x="765" y="205" />
+        <di:waypoint x="765" y="285" />
+        <di:waypoint x="668" y="285" />
+        <di:waypoint x="668" y="342" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="mf_pseudo_di" bpmnElement="mf_pseudo">
+        <di:waypoint x="770" y="400" />
+        <di:waypoint x="770" y="490" />
+        <di:waypoint x="248" y="490" />
+        <di:waypoint x="248" y="672" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="mf_esito_di" bpmnElement="mf_esito">
+        <di:waypoint x="1600" y="650" />
+        <di:waypoint x="1600" y="490" />
+        <di:waypoint x="1068" y="490" />
+        <di:waypoint x="1068" y="378" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="mf_inoltro_di" bpmnElement="mf_inoltro">
+        <di:waypoint x="1185" y="320" />
+        <di:waypoint x="1185" y="262" />
+        <di:waypoint x="908" y="262" />
+        <di:waypoint x="908" y="183" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="mf_sanz_di" bpmnElement="mf_sanz">
+        <di:waypoint x="1320" y="630" />
+        <di:waypoint x="1320" y="990" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
