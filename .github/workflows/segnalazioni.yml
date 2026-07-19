@@ -39,22 +39,19 @@ jobs:
         run: echo "Credenziali verificate."
       - name: Creazione pseudonimo
         id: pseudo
-        run: |
-          HASH=$(printf '%s' "${{ inputs.identita_segnalante }}" | sha256sum | cut -c1-12)
-          echo "pseudonimo=segnalante-$HASH" >> "$GITHUB_OUTPUT"
+        run: echo "pseudonimo=segnalante" >> "$GITHUB_OUTPUT"
 
-  # =============== POOL COMITATO - Valutazione preliminare (UMANO) ==============
+  # =============== POOL COMITATO - Valutazione preliminare ==============
   comitato:
     name: "Comitato - Valutazione preliminare"
     needs: sgr_autenticazione_pseudonimo
     runs-on: ubuntu-latest
-    environment: comitato-valutazione        # <-- gate umano: required reviewers
+    environment: comitato-valutazione        # <-- task umano
     steps:
       - run: |
-          echo "Caso ${{ needs.sgr_autenticazione_pseudonimo.outputs.pseudonimo }}"
           echo "Decisione preliminare: ${{ inputs.fondata }}"
 
-  # ================= Verifiche in PARALLELO (AND-split) - UMANO =================
+  # ================= Verifiche in PARALLELO =================
   comitato_verifica_documentale:
     name: "Comitato - Verifica documentale"
     needs: comitato
@@ -62,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: comitato-verifiche
     steps:
-      - run: echo "Verifica documentale completata (integrita prove controllata)."
+      - run: echo "Verifica documentale completata"
 
   comitato_verifica_contabile:
     name: "Comitato - Verifica contabile"
@@ -73,10 +70,10 @@ jobs:
     steps:
       - run: echo "Verifica contabile completata."
 
-  # ================ Esito: AND-join + XOR a 3 vie (UMANO) ================
+  # ================ Esito ================
   comitato_decisione:
     name: "Comitato - Decisione esito"
-    needs: [comitato_verifica_documentale, comitato_verifica_contabile]   # AND-join
+    needs: [comitato_verifica_documentale, comitato_verifica_contabile]  
     if: ${{ inputs.fondata == 'fondata' }}
     runs-on: ubuntu-latest
     environment: comitato-decisione
@@ -110,7 +107,7 @@ jobs:
     steps:
       - run: echo "Segnalazione archiviata."
 
-  # ---- ramo INCONCLUDENTE (loop non nativo) ----
+  # ---- ramo INCONCLUDENTE ----
   comitato_reindagine:
     name: "Comitato - Dati non sufficienti"
     needs: comitato_decisione
@@ -120,10 +117,9 @@ jobs:
       - run: |
           echo "Esito inconcludente."
 
-  # ==================== SGR - Invio esito al segnalante (automatico) ====================
+  # ==================== SGR - Invio esito al segnalante ====================
   sgr_invio_esito:
     name: "SGR - Invio esito al segnalante (pseudonimo)"
-    # confluenza di tutti i rami terminali (generica / confermato / non confermato / inconcludente)
     needs:
       - sgr_autenticazione_pseudonimo
       - comitato
